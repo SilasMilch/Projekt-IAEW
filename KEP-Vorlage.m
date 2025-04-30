@@ -59,39 +59,47 @@ KEP_Data_Vorlage
 
 nPP = size(kwData, 1);
 nT= T;
-
-LB_P = kwData(:,4);
-LB_P = repmat(LB_P, 1, nT);
 UB_P = kwData(:,5);
 UB_P = repmat(UB_P, 1, nT); 
-cost = repmat(kwData(:,6), 1, nT);
-
+c_var = repmat(kwData(:,6), 1, nT);
+Pmin = repmat(kwData(:,4), 1, nT);
+c_fix = repmat(kwData(:,7), 1, nT);
+c_anf = repmat(kwData(:,8), 1, nT);
+DT = repmat(kwData(:,9), 1, nT);
+BvO = repmat(kwData(:,3), 1, nT);
 
 probAP2a = optimproblem("Description","", "ObjectiveSense",""); 
 P_kt = optimvar("P_kt", nPP, nT, ...
-                "LowerBound", LB_P, ...
+                "LowerBound", 0, ...
                 "UpperBound", UB_P, ...
-                "Type", "continuous");
-
-LB_B = kwData(:,4);
-LB_B = repmat(LB_B, 1, nT);
-UB_B = kwData(:,5);
-UB_B = repmat(UB_B, 1, nT); 
+                "Type", "continuous"); 
 Betrieb_kt = optimvar("Betrieb_kt", nPP, nT, ...
-                "LowerBound",LB_B , ...
-                "UpperBound",UB_B , ...
-                "Type", "continuous");
+                "LowerBound",0 , ...
+                "UpperBound",1 , ...
+                "Type", "integer");
 Son_kt = optimvar("Son_kt", nPP, nT, ...
-                "LowerBound",LB_Son , ...
-                "UpperBound",UB_Son , ...
-                "Type", "continuous");
+                "LowerBound",0 , ...
+                "UpperBound",1 , ...
+                "Type", "integer");
 Soff_kt = optimvar("Soff_kt", nPP, nT, ...
-                "LowerBound",LB_Soff , ...
-                "UpperBound",UB_Soff , ...
-                "Type", "continuous");
-probAP2a.Objective = ;
-probAP2a.Constraints.demand = ;
-probAP2a.Constraints.  ...
+                "LowerBound",0 , ...
+                "UpperBound",1 , ...
+                "Type", "integer");
+probAP2a.Objective = sum(sum(c_var .* P_kt + c_fix .* Betrieb_kt + c_anf .* Son_kt));
+probAP2a.Constraints.demand = optimconstr(nT,1);
+for l = 1:nT
+     probAP1.Constraints.demand(l) = sum(P_kt(:,l)) == Power_Demand(l);
+end
+probAP2a.Constraints.leistungsintervalle = optimconstr(nPP, nT);
+for i = 1:nPP
+    for j:nT 
+        probAP2a.Constraints.leistungsintervalle(i,J) = [
+            P_kt(i,j) >= Pmin(i,j) * Betrieb_kt(i,j),
+            P_kt(i,j) >= UB_P(i,j) * Betrieb_kt(i,j)
+        ];
+    end
+end
+
 
 solAP2a = probAP2a.solve("Solver","intlinprog");
 
