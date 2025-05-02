@@ -1,5 +1,5 @@
-clc
-clear all
+clc;
+clear all;
 
 %% Einbinden von KEP_Data
 KEP_Data_Vorlage
@@ -92,7 +92,7 @@ for l = 1:nT
 end
 probAP2a.Constraints.leistungsintervalle = optimconstr(nPP, nT);
 for i = 1:nPP
-    for j:nT 
+    for j= 1:nT 
         probAP2a.Constraints.leistungsintervalle(i,J) = [
             P_kt(i,j) >= Pmin(i,j) * Betrieb_kt(i,j),
             P_kt(i,j) >= UB_P(i,j) * Betrieb_kt(i,j)
