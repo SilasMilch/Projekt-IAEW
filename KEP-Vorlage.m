@@ -1,5 +1,5 @@
-clc;
-clear all;
+clc
+clear all
 
 %% Einbinden von KEP_Data
 KEP_Data_Vorlage
@@ -53,55 +53,49 @@ KEP_Data_Vorlage
 
 
 %% AP2a
-clear
-KEP_Data_Vorlage
-% Erstellen des Optimerungsproblem-Objekts
+clear all; clc;
+KEP_Data_Vorlage;
 
-nPP = size(kwData, 1);
-nT= T;
-UB_P = kwData(:,5);
-UB_P = repmat(UB_P, 1, nT); 
-c_var = repmat(kwData(:,6), 1, nT);
-Pmin = repmat(kwData(:,4), 1, nT);
-c_fix = repmat(kwData(:,7), 1, nT);
-c_anf = repmat(kwData(:,8), 1, nT);
-DT = repmat(kwData(:,9), 1, nT);
-BvO = repmat(kwData(:,3), 1, nT);
+% Problemdimensionen
+nPP = size(kwData, 1);  % Anzahl Kraftwerke
+nT = T;                 % Anzahl Zeitschritte
 
-probAP2a = optimproblem("Description","", "ObjectiveSense",""); 
-P_kt = optimvar("P_kt", nPP, nT, ...
-                "LowerBound", 0, ...
-                "UpperBound", UB_P, ...
-                "Type", "continuous"); 
-Betrieb_kt = optimvar("Betrieb_kt", nPP, nT, ...
-                "LowerBound",0 , ...
-                "UpperBound",1 , ...
-                "Type", "integer");
-Son_kt = optimvar("Son_kt", nPP, nT, ...
-                "LowerBound",0 , ...
-                "UpperBound",1 , ...
-                "Type", "integer");
-Soff_kt = optimvar("Soff_kt", nPP, nT, ...
-                "LowerBound",0 , ...
-                "UpperBound",1 , ...
-                "Type", "integer");
-probAP2a.Objective = sum(sum(c_var .* P_kt + c_fix .* Betrieb_kt + c_anf .* Son_kt));
-probAP2a.Constraints.demand = optimconstr(nT,1);
-for l = 1:nT
-     probAP1.Constraints.demand(l) = sum(P_kt(:,l)) == Power_Demand(l);
-end
-probAP2a.Constraints.leistungsintervalle = optimconstr(nPP, nT);
-for i = 1:nPP
-    for j= 1:nT 
-        probAP2a.Constraints.leistungsintervalle(i,J) = [
-            P_kt(i,j) >= Pmin(i,j) * Betrieb_kt(i,j),
-            P_kt(i,j) >= UB_P(i,j) * Betrieb_kt(i,j)
-        ];
-    end
-end
+% Datenmatrizen
+UB_P = repmat(kwData(:,5), 1, nT);   % Maximale Leistung (kW)
+c_var = repmat(kwData(:,6), 1, nT);  % Variable Kosten (€/kWh)
+Pmin = repmat(kwData(:,4), 1, nT);   % Minimale Leistung (kW)
+c_fix = repmat(kwData(:,7), 1, nT);  % Fixkosten (€/h)
 
+% Optimierungsproblem
+probAP2a = optimproblem('Description', 'Kostenminimierung', 'ObjectiveSense', 'min');
 
-solAP2a = probAP2a.solve("Solver","intlinprog");
+% Variablen
+P_kt = optimvar('P_kt', nPP, nT, 'LowerBound', 0, 'UpperBound', UB_P, 'Type', 'continuous');
+Betrieb_kt = optimvar('Betrieb_kt', nPP, nT, 'LowerBound', 0, 'UpperBound', 1, 'Type', 'integer');
+
+% Zielfunktion
+probAP2a.Objective = sum(sum(c_var .* P_kt + c_fix .* Betrieb_kt));
+
+% Nebenbedingungen
+probAP2a.Constraints.demand = sum(P_kt, 1) == Power_Demand';
+probAP2a.Constraints.minPower = P_kt >= Pmin .* Betrieb_kt;
+probAP2a.Constraints.maxPower = P_kt <= UB_P .* Betrieb_kt;
+
+% Lösung
+[solAP2a, fval] = solve(probAP2a, 'Solver', 'intlinprog');
+
+% Bereinige negative Werte (numerische Artefakte)
+solAP2a.P_kt(solAP2a.P_kt < 0) = 0;
+
+% Ausgabe (kompakt wie in deiner Version)
+disp('=== OPTIMIERUNGSERGEBNIS ===');
+fprintf('Gesamtkosten: %.2f €\n\n', fval);
+
+disp('Leistungsabgabe (kW):');
+disp(round(solAP2a.P_kt));  % Ganzzahlige Rundung für Lesbarkeit
+
+disp('Betriebsstatus (1=ON, 0=OFF):');
+disp(round(solAP2a.Betrieb_kt));  % Sicherstellung, dass nur 0 oder 1 angezeigt wird
 
 
     
