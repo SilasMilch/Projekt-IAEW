@@ -96,7 +96,7 @@ disp(round(solAP2a.P_kt));  % Ganzzahlige Rundung für Lesbarkeit
 
 disp('Betriebsstatus (1=ON, 0=OFF):');
 disp(round(solAP2a.Betrieb_kt));  % Sicherstellung, dass nur 0 oder 1 angezeigt wird
-
+%% test
 
     
 %% Graphische Auswertung der berechneten Lösung
