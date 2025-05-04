@@ -128,8 +128,34 @@ colorbar;
 yticks(1:nPP);
 xticks(1:nT);
 
-%Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs
+%Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs (aus Betrieb_kt)
+aktive_KW = sum(round(solAP2a.Betrieb_kt), 1);  % Zeilenweise Summe
+
+figure;
+bar(1:nT, aktive_KW);
+xlabel('Zeitschritt');
+ylabel('Anzahl aktiver Kraftwerke');
+title('Anzahl im Betrieb befindlicher Kraftwerke je Zeitschritt');
+grid on;
+
 
 %Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
-    
+% Berechnung der Grenzkosten
+marginal_costs = zeros(1, nT);
+for t = 1:nT
+    aktiv = round(solAP2a.Betrieb_kt(:,t)) == 1;
+    if any(aktiv)
+        marginal_costs(t) = max(kwData(aktiv,6));  % max variable Kosten der aktiven Kraftwerke
+    else
+        marginal_costs(t) = NaN;  % keine aktiven KW – optional behandeln
+    end
+end
+
+figure;
+plot(1:nT, marginal_costs, '-o');
+xlabel('Zeitschritt');
+ylabel('Grenzkosten (€/kWh)');
+title('Grenzkostenverlauf (Merit-Order Preis)');
+grid on;
+
     
