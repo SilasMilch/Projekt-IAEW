@@ -1,5 +1,5 @@
-clc
-clear all
+clc;
+clear all;
 
 %% Einbinden von KEP_Data
 KEP_Data_Vorlage
@@ -53,7 +53,8 @@ KEP_Data_Vorlage
 
 
 %% AP2a
-clear all; clc;
+clear all; 
+clc;
 KEP_Data_Vorlage;
 
 % Problemdimensionen
@@ -97,9 +98,34 @@ disp(round(solAP2a.P_kt));  % Ganzzahlige Rundung für Lesbarkeit
 disp('Betriebsstatus (1=ON, 0=OFF):');
 disp(round(solAP2a.Betrieb_kt));  % Sicherstellung, dass nur 0 oder 1 angezeigt wird
 
-
     
 %% Graphische Auswertung der berechneten Lösung
+% Farben für Plot (optional)
+farben = lines(nPP);
+
+% Leistungsabgabe plotten
+figure;
+hold on;
+for k = 1:nPP
+    plot(1:nT, solAP2a.P_kt(k,:), '-o', 'Color', farben(k,:), 'DisplayName', sprintf('KW %d', k));
+end
+xlabel('Zeitschritt');
+ylabel('Leistung (kW)');
+title('Leistungsabgabe der Kraftwerke');
+legend('Location','bestoutside');
+grid on;
+hold off;
+
+% Betriebsstatus plotten
+figure;
+imagesc(round(solAP2a.Betrieb_kt));
+colormap(gray);
+xlabel('Zeitschritt');
+ylabel('Kraftwerk');
+title('Betriebsstatus (1 = AN, 0 = AUS)');
+colorbar;
+yticks(1:nPP);
+xticks(1:nT);
 
 %Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs
 
