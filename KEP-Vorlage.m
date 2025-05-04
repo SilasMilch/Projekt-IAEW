@@ -102,7 +102,7 @@ disp(round(solAP2a.Betrieb_kt));  % Sicherstellung, dass nur 0 oder 1 angezeigt 
 %% test
 >>>>>>> origin/main
 
-    
+
 %% Graphische Auswertung der berechneten Lösung
 % Farben für Plot (optional)
 farben = lines(nPP);
