@@ -141,7 +141,7 @@ solAP2a = probAP2a.solve("Solver","intlinprog");
 %Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
 %Bereinige negative Werte (numerische Artefakte)
 solAP2a.P_kt(solAP2a.P_kt < 0) = 0;
-Ausgabe (kompakt wie in deiner Version)
+%Ausgabe (kompakt wie in deiner Version)
 total_cost = sum(sum(c_var .* solAP2a.P_kt + c_fix .* solAP2a.Betrieb_kt));
 disp('=== OPTIMIERUNGSERGEBNIS ===');
 fprintf('Gesamtkosten: %.2f €\n\n', total_cost);  % Assicurati che fval sia disponibile nel tuo script
