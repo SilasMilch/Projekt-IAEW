@@ -95,7 +95,7 @@ for i = 1:nPP
     end
 end
 
-Vincolo potenza massima
+%Vincolo potenza massima
 probAP2a.Constraints.leistungs_max = optimconstr(nPP, nT);
 for i = 1:nPP
     for j = 1:nT
@@ -103,7 +103,7 @@ for i = 1:nPP
     end
 end
 
-3. Definizione startup/shutdown
+%Definizione startup/shutdown
 probAP2a.Constraints.startup_shutdown = optimconstr(nPP, nT);
 for j = 1:nPP
     for t = 1:nT
@@ -137,11 +137,9 @@ end
 solAP2a = probAP2a.solve("Solver","intlinprog");
 
 % Graphische Auswertung der berechneten Lösung
-
-Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs
-
-Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
-Bereinige negative Werte (numerische Artefakte)
+%Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs
+%Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
+%Bereinige negative Werte (numerische Artefakte)
 solAP2a.P_kt(solAP2a.P_kt < 0) = 0;
 Ausgabe (kompakt wie in deiner Version)
 total_cost = sum(sum(c_var .* solAP2a.P_kt + c_fix .* solAP2a.Betrieb_kt));
@@ -177,7 +175,7 @@ colorbar;
 yticks(1:nPP);
 xticks(1:nT);
 
-Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs (aus Betrieb_kt)
+%Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs (aus Betrieb_kt)
 aktive_KW = sum(round(solAP2a.Betrieb_kt), 1);  % Zeilenweise Summe
 
 figure;
@@ -187,8 +185,8 @@ ylabel('Anzahl aktiver Kraftwerke');
 title('Anzahl im Betrieb befindlicher Kraftwerke je Zeitschritt');
 grid on;
 
-Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
-Berechnung der Grenzkosten
+%Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
+%Berechnung der Grenzkosten
 marginal_costs = zeros(1, nT);
 for t = 1:nT
     aktiv = round(solAP2a.Betrieb_kt(:,t)) == 1;
