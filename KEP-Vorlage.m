@@ -50,61 +50,110 @@ KEP_Data_Vorlage
 % disp(solAP1.P_kt);
 % 
 
+% AP2a
+clear
+KEP_Data_Vorlage
+Erstellen des Optimerungsproblem-Objekts
 
+nPP = size(kwData, 1);
+nT= T;
+UB_P = kwData(:,5);
+UB_P = repmat(UB_P, 1, nT); 
+c_var = repmat(kwData(:,6), 1, nT);
+Pmin = repmat(kwData(:,4), 1, nT);
+c_fix = repmat(kwData(:,7), 1, nT);
+c_anf = repmat(kwData(:,8), 1, nT);
+DT = repmat(kwData(:,9), 1, nT);
+BvO = kwData(:,3);
 
-%% AP2a
-clear all; 
-clc;
-KEP_Data_Vorlage;
+probAP2a = optimproblem("Description","minimize cost", "ObjectiveSense","min"); 
+P_kt = optimvar("P_kt", nPP, nT, ...
+                "LowerBound", 0, ...
+                "UpperBound", UB_P, ...
+                "Type", "continuous"); 
+Betrieb_kt = optimvar("Betrieb_kt", nPP, nT, ...
+                "LowerBound",0 , ...
+                "UpperBound",1 , ...
+                "Type", "integer");
+Son_kt = optimvar("Son_kt", nPP, nT, ...
+                "LowerBound",0 , ...
+                "UpperBound",1 , ...
+                "Type", "integer");
+Soff_kt = optimvar("Soff_kt", nPP, nT, ...
+                "LowerBound",0 , ...
+                "UpperBound",1 , ...
+                "Type", "integer");
+probAP2a.Objective = sum(sum(c_var .* P_kt + c_fix .* Betrieb_kt + c_anf .* Son_kt));
+probAP2a.Constraints.demand = optimconstr(nT,1);
+for l = 1:nT
+     probAP2a.Constraints.demand(l) = sum(P_kt(:,l)) == Power_Demand(l);
+end
+probAP2a.Constraints.leistungs_min = optimconstr(nPP, nT);
+for i = 1:nPP
+    for j = 1:nT
+        probAP2a.Constraints.leistungs_min(i,j) = P_kt(i,j) >= Pmin(i,j) .* Betrieb_kt(i,j);
+    end
+end
 
-% Problemdimensionen
-nPP = size(kwData, 1);  % Anzahl Kraftwerke
-nT = T;                 % Anzahl Zeitschritte
+Vincolo potenza massima
+probAP2a.Constraints.leistungs_max = optimconstr(nPP, nT);
+for i = 1:nPP
+    for j = 1:nT
+        probAP2a.Constraints.leistungs_max(i,j) = P_kt(i,j) <= UB_P(i,j) .* Betrieb_kt(i,j);
+    end
+end
 
-% Datenmatrizen
-UB_P = repmat(kwData(:,5), 1, nT);   % Maximale Leistung (kW)
-c_var = repmat(kwData(:,6), 1, nT);  % Variable Kosten (€/kWh)
-Pmin = repmat(kwData(:,4), 1, nT);   % Minimale Leistung (kW)
-c_fix = repmat(kwData(:,7), 1, nT);  % Fixkosten (€/h)
+3. Definizione startup/shutdown
+probAP2a.Constraints.startup_shutdown = optimconstr(nPP, nT);
+for j = 1:nPP
+    for t = 1:nT
+        if t == 1
+           v_prev = double(BvO(j) > 0);  % stato precedente: acceso (1) o spento (0)
+        else
+            v_prev = Betrieb_kt(j,t-1);
+        end
+        probAP2a.Constraints.startup_shutdown(j,t) = Betrieb_kt(j,t) - v_prev == Son_kt(j,t) - Soff_kt(j,t);
+    end
+end
 
-% Optimierungsproblem
-probAP2a = optimproblem('Description', 'Kostenminimierung', 'ObjectiveSense', 'min');
+% Evita startup e shutdown contemporanei
+probAP2a.Constraints.no_double_switch = optimconstr(nPP, nT);
+for j = 1:nPP
+    for t = 1:nT
+        probAP2a.Constraints.no_double_switch(j,t) = Son_kt(j,t) + Soff_kt(j,t) <= 1;
+    end
+end
 
-% Variablen
-P_kt = optimvar('P_kt', nPP, nT, 'LowerBound', 0, 'UpperBound', UB_P, 'Type', 'continuous');
-Betrieb_kt = optimvar('Betrieb_kt', nPP, nT, 'LowerBound', 0, 'UpperBound', 1, 'Type', 'integer');
+probAP2a.Constraints.downtime = optimconstr(nPP, nT);
+for j = 1:nPP
+    for t = 1:nT
+        if t > 1  % evitare t-1 quando t=1
+            Vincolo per downtime, che assicura che una centrale non venga riaccesa prima del tempo necessario
+            probAP2a.Constraints.downtime(j,t) = sum(1 - Betrieb_kt(j,max(1,t-DT(j)+1):t-1)) + Son_kt(j,t) <= DT(j);
+        end
+    end
+end
 
-% Zielfunktion
-probAP2a.Objective = sum(sum(c_var .* P_kt + c_fix .* Betrieb_kt));
+solAP2a = probAP2a.solve("Solver","intlinprog");
 
-% Nebenbedingungen
-probAP2a.Constraints.demand = sum(P_kt, 1) == Power_Demand';
-probAP2a.Constraints.minPower = P_kt >= Pmin .* Betrieb_kt;
-probAP2a.Constraints.maxPower = P_kt <= UB_P .* Betrieb_kt;
+% Graphische Auswertung der berechneten Lösung
 
-% Lösung
-[solAP2a, fval] = solve(probAP2a, 'Solver', 'intlinprog');
+Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs
 
-% Bereinige negative Werte (numerische Artefakte)
+Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
+Bereinige negative Werte (numerische Artefakte)
 solAP2a.P_kt(solAP2a.P_kt < 0) = 0;
-
-% Ausgabe (kompakt wie in deiner Version)
+Ausgabe (kompakt wie in deiner Version)
+total_cost = sum(sum(c_var .* solAP2a.P_kt + c_fix .* solAP2a.Betrieb_kt));
 disp('=== OPTIMIERUNGSERGEBNIS ===');
-fprintf('Gesamtkosten: %.2f €\n\n', fval);
+fprintf('Gesamtkosten: %.2f €\n\n', total_cost);  % Assicurati che fval sia disponibile nel tuo script
 
 disp('Leistungsabgabe (kW):');
 disp(round(solAP2a.P_kt));  % Ganzzahlige Rundung für Lesbarkeit
-
 disp('Betriebsstatus (1=ON, 0=OFF):');
-disp(round(solAP2a.Betrieb_kt));  % Sicherstellung, dass nur 0 oder 1 angezeigt wird
+disp(round(solAP2a.Betrieb_kt));
 
-
-
-%% Graphische Auswertung der berechneten Lösung
-% Farben für Plot (optional)
 farben = lines(nPP);
-
-% Leistungsabgabe plotten
 figure;
 hold on;
 for k = 1:nPP
@@ -117,7 +166,7 @@ legend('Location','bestoutside');
 grid on;
 hold off;
 
-% Betriebsstatus plotten
+Betriebsstatus plotten
 figure;
 imagesc(round(solAP2a.Betrieb_kt));
 colormap(gray);
@@ -128,7 +177,7 @@ colorbar;
 yticks(1:nPP);
 xticks(1:nT);
 
-%Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs (aus Betrieb_kt)
+Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs (aus Betrieb_kt)
 aktive_KW = sum(round(solAP2a.Betrieb_kt), 1);  % Zeilenweise Summe
 
 figure;
@@ -138,9 +187,8 @@ ylabel('Anzahl aktiver Kraftwerke');
 title('Anzahl im Betrieb befindlicher Kraftwerke je Zeitschritt');
 grid on;
 
-
-%Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
-% Berechnung der Grenzkosten
+Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
+Berechnung der Grenzkosten
 marginal_costs = zeros(1, nT);
 for t = 1:nT
     aktiv = round(solAP2a.Betrieb_kt(:,t)) == 1;
@@ -157,5 +205,3 @@ xlabel('Zeitschritt');
 ylabel('Grenzkosten (€/kWh)');
 title('Grenzkostenverlauf (Merit-Order Preis)');
 grid on;
-
-    
