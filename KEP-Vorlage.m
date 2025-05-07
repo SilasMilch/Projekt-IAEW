@@ -130,7 +130,6 @@ for i = 1:nPP
     end
 end
 
-%Vincolo potenza massima
 probAP2a.Constraints.leistungs_max = optimconstr(nPP, nT);
 for i = 1:nPP
     for j = 1:nT
@@ -138,12 +137,11 @@ for i = 1:nPP
     end
 end
 
-%3. Definizione startup/shutdown
 probAP2a.Constraints.startup_shutdown = optimconstr(nPP, nT);
 for j = 1:nPP
     for t = 1:nT
         if t == 1
-           v_prev = double(BvO(j) > 0);  % stato precedente: acceso (1) o spento (0)
+           v_prev = double(BvO(j) > 0);  
         else
             v_prev = Betrieb_kt(j,t-1);
         end
@@ -156,22 +154,22 @@ probAP2a.Constraints.downtime = optimconstr(nPP, nT);
 for j = 1:nPP
     for t = 2:nT
         if DT(j) > 0 && t > DT(j)
-            % Se voglio accendere in t, devo essere stato spento per almeno DT(j) periodi
             probAP2a.Constraints.downtime(j,t) = sum(Betrieb_kt(j, t - DT(j):t - 1)) <= (1 - Son_kt(j,t)) * DT(j);
         end
     end
 end
 
+%ap2b 
 probAP2a.Constraints.uptime = optimconstr(nPP, nT);
 for j = 1:nPP
     for t = 1:nT - 1
         if UT(j) > 0 && t + UT(j) - 1 <= nT
-            % Se accendo in t, devo rimanere acceso per almeno UT(j) periodi
             probAP2a.Constraints.uptime(j,t) = sum(1 - Betrieb_kt(j, t + 1 : t + UT(j) - 1)) <= (1 - Son_kt(j,t)) * UT(j);
         end
     end
 end
 
+%ap3
 probAP2a.Constraints.max_startups = optimconstr(nPP,1);
 for j = 1:nPP
     probAP2a.Constraints.max_startups(j) = sum(Son_kt(j,:)) <= A(j,1);
@@ -186,6 +184,8 @@ probAP2a.Constraints.max_operating = optimconstr(nPP,1);
 for j = 1:nPP
     probAP2a.Constraints.max_operating(j) = sum(Betrieb_kt(j,:)) <= rf_max(j,1);
 end
+
+
 
 solAP2a = probAP2a.solve("Solver","intlinprog");
 
@@ -208,76 +208,3 @@ disp(round(solAP2a.P_kt));  % Ganzzahlige Rundung für Lesbarkeit
 
 disp('Betriebsstatus (1=ON, 0=OFF):');
 disp(round(solAP2a.Betrieb_kt));
-
-% Estrai le soluzioni ottimali
-P_kt_sol = solAP2a.P_kt;
-Betrieb_kt_sol = solAP2a.Betrieb_kt;
-Son_kt_sol = solAP2a.Son_kt;
-
-% Inizializza vettore per il costo totale per giorno
-total_cost_per_day = zeros(nT, 1);
-
-% Calcola e stampa il costo per ciascun giorno
-for t = 1:nT
-    cost_var = sum(c_var(:,t) .* P_kt_sol(:,t));
-    cost_fix = sum(c_fix(:,t) .* Betrieb_kt_sol(:,t));
-    cost_startup = sum(c_anf(:,t) .* Son_kt_sol(:,t));
-    total_cost_per_day(t) = cost_var + cost_fix + cost_startup;
-    
-    fprintf('Giorno %d: Costo variabile = %.2f, Costo fisso = %.2f, Costo startup = %.2f, Costo totale = %.2f\n', ...
-        t, cost_var, cost_fix, cost_startup, total_cost_per_day(t));
-end
-
-farben = lines(nPP);
-
-figure;
-hold on;
-for k = 1:nPP
-    plot(1:nT, solAP2a.P_kt(k,:), '-o', 'Color', farben(k,:), 'DisplayName', sprintf('KW %d', k));
-end
-xlabel('Zeitschritt');
-ylabel('Leistung (kW)');
-title('Leistungsabgabe der Kraftwerke');
-legend('Location','bestoutside');
-grid on;
-hold off;
-
-%Betriebsstatus plotten
-figure;
-imagesc(round(solAP2a.Betrieb_kt));
-colormap(gray);
-xlabel('Zeitschritt');
-ylabel('Kraftwerk');
-title('Betriebsstatus (1 = AN, 0 = AUS)');
-colorbar;
-yticks(1:nPP);
-xticks(1:nT);
-
-%Darstellung der im Betrieb befindlichen Kraftwerke zur Deckung des Lastgangs (aus Betrieb_kt)
-aktive_KW = sum(round(solAP2a.Betrieb_kt), 1);  % Zeilenweise Summe
-
-figure;
-bar(1:nT, aktive_KW);
-xlabel('Zeitschritt');
-ylabel('Anzahl aktiver Kraftwerke');
-title('Anzahl im Betrieb befindlicher Kraftwerke je Zeitschritt');
-grid on;
-
-%Darstellung der Grenzkosten im Verlauf des Optimierungszeitraums
-%Berechnung der Grenzkosten
-marginal_costs = zeros(1, nT);
-for t = 1:nT
-    aktiv = round(solAP2a.Betrieb_kt(:,t)) == 1;
-    if any(aktiv)
-        marginal_costs(t) = max(kwData(aktiv,6));  % max variable Kosten der aktiven Kraftwerke
-    else
-        marginal_costs(t) = NaN;  % keine aktiven KW – optional behandeln
-    end
-end
-
-figure;
-plot(1:nT, marginal_costs, '-o');
-xlabel('Zeitschritt');
-ylabel('Grenzkosten (€/kWh)');
-title('Grenzkostenverlauf (Merit-Order Preis)');
-grid on;
