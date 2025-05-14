@@ -187,6 +187,46 @@ for j = 1:nPP
     probAP2a.Constraints.max_operating(j) = sum(Betrieb_kt(j,:)) <= rf_max(j,1);
 end
 
+%ap4
+
+
+probAP2a.Constraints.ramping_up = optimconstr(nPP, nT);
+for j = 1:nPP
+    for t = 1:nT
+        if t==1
+            Svor = SvO(j);
+            Pvor = P_t(j);
+        else
+            Svor = Betrieb_kt(j, t-1);
+            Pvor = P_kt(j, t-1);
+        end
+
+        probAP2a.Constraints.ramping_up(j,t) = -UB_P(j,t)<=-P_kt(j,t)+Pvor+(SU_SD(j)-UB_P(j,t))*Betrieb_kt(j,t)+(RU_RD(j)-SU_SD(j))*Svor;
+    end
+end
+
+probAP2a.Constraints.ramping_down = optimconstr(nPP, nT);
+for j = 1:nPP
+    for t = 1:nT
+        if t==1
+            Svor = SvO(j);
+            Pvor = P_t(j);
+        else
+            Svor = Betrieb_kt(j, t-1);
+            Pvor = P_kt(j, t-1);
+        end
+
+        probAP2a.Constraints.ramping_down(j,t) = 0<=UB_P(j,t)+P_kt(j,t)-Pvor+(SU_SD(j)-UB_P(j,t))*Svor+(RU_RD(j)-SU_SD(j))*Betrieb_kt(j,t);
+    end
+end
+
+probAP2a.Constraints.shutting_down = optimconstr(nPP, nT-1);
+for j = 1:nPP
+    for t = 1:nT-1
+        probAP2a.Constraints.shutting_down(j,t) = P_kt(j,t)<=SU_SD(j)*Betrieb_kt(j,t)+(UB_P(j,t)-SU_SD(j))*Betrieb_kt(j, t+1);
+    end
+end
+
 solAP2a = probAP2a.solve("Solver","intlinprog");
 
 
