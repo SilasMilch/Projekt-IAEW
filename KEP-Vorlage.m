@@ -208,3 +208,22 @@ disp(round(solAP2a.P_kt));  % Ganzzahlige Rundung für Lesbarkeit
 
 disp('Betriebsstatus (1=ON, 0=OFF):');
 disp(round(solAP2a.Betrieb_kt));
+
+
+
+Error using optim.internal.problemdef.HashMapFunctions.union
+OptimizationVariables appearing in the same OptimizationProblem must have distinct "Name" properties.
+Make a new variable with a different "Name" property, or retrieve the original variable using the Variables property.
+
+Error in addVariablesAndParametersFromExprOrConstr
+
+Error in addVariablesAndParametersFromExprOrConstr
+
+Error in optim.internal.problemdef.ProblemImpl/makeVariablesAndParametersLists
+
+Error in indexing
+
+Error in indexing
+
+Error in KEP_Vorlage (line 151)
+        probAP2a.Constraints.startup_shutdown(j,t) = Betrieb_kt(j,t) - v_prev == Son_kt(j,t) - Soff_kt(j,t);
