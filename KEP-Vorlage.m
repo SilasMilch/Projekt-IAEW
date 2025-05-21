@@ -227,6 +227,49 @@ for j = 1:nPP
     end
 end
 
+%ap5
+
+
+%
+probAP2a.Constraints.isuc_1 = optimconstr(nPP, nT);
+probAP2a.Constraints.isuc_alle = optimconstr(nPP, nT);
+
+for j = 1:nPP
+%     for t = 1:nT
+%         if t == 1
+            if SvO(j)==0 && abs(BvO(j)) >= CT(j)
+                probAP2a.Constraints.isuc_1(j, t) = Isuc_kt(j, t) >= Son_kt(j, t);
+            else
+                probAP2a.Constraints.isuc_1(j, t) = Isuc_kt(j, t) == 0;
+            end
+            for t = 2:nT
+            probAP2a.Constraints.isuc_alle(j, t-1) = Isuc_kt(j, t) >= Son_kt(j, t) - sum(Betrieb_kt(j, max(1, t- CT(j)):(t-1)));
+            end
+    %end
+end
+
+probAP2a.Constraints.Blb_Indikator = optimconstr(nPP, nT);
+for j = 1:nPP
+    for t = 1:nT
+        if isempty(max(1, t - CT(j)):(T-1))
+            vSumExpr = 0;
+        else
+            vSumExpr = sum(Betrieb_kt(j, max(1, t - CT(j)):(T-1)));
+        end
+
+        probAP2a.Constraints.Blb_Indikator(j, t) = Blc_kt(j,t) <= vSumExpr + Isuc_kt(j,t);
+    end
+end
+
+
+
+probAP2a.Constraints.cold_cost = optimconstr(nPP, nT);
+for j = 1:nPP
+    for t = 1:nT
+        probAP2a.Constraints.cold_cost(j,t) = Son_kt(j,t)+Isuc_kt(j,t)<=1+Suc_kt(j,t);
+    end
+end
+
 solAP2a = probAP2a.solve("Solver","intlinprog");
 
 
